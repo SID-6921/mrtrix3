@@ -199,7 +199,7 @@ def execute_fsl():
     fnirt_config = app.ARGS.fnirt_config
   elif 'Dwi2maskTemplateFSLFnirtConfig' in CONFIG:
     fnirt_config = pathlib.Path(CONFIG['Dwi2maskTemplateFSLFnirtConfig'])
-    if not fnirt_config.is_file:
+    if not fnirt_config.is_file():
       raise MRtrixError(f'No file found at config file entry "Dwi2maskTemplateFSLFnirtConfig" location {fnirt_config}')
   else:
     fnirt_config = None
