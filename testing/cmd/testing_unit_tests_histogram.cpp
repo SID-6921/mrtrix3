@@ -81,19 +81,46 @@ void run ()
 
   // The overflow guard for a value genuinely beyond the calibrated range must still
   //   return the out-of-range sentinel (Data::size()), not a clamped in-range index.
+  // This must hold on both sides of the range, and Data::operator() must count such
+  //   values in get_num_out_of_range() rather than adding them to any bin.
+  size_t extra_tests = 1;
   {
     Calibrator calibrator (4);
     calibrator (0.0);
     calibrator (10.0);
     calibrator.finalize (1, false);
     Data data (calibrator);
-    const size_t pos = data.bin (1000.0);
-    if (pos != data.size())
-      failures.push_back ("a value far beyond the calibrated maximum returned bin index " + str(pos) + " instead of the out-of-range sentinel " + str(data.size()));
+    const size_t pos_above = data.bin (1000.0);
+    if (pos_above != data.size())
+      failures.push_back ("a value far beyond the calibrated maximum returned bin index " + str(pos_above) + " instead of the out-of-range sentinel " + str(data.size()));
+
+    ++extra_tests;
+    const size_t pos_below = data.bin (-1000.0);
+    if (pos_below != data.size())
+      failures.push_back ("a value far below the calibrated minimum returned bin index " + str(pos_below) + " instead of the out-of-range sentinel " + str(data.size()));
+
+    ++extra_tests;
+    if (data.get_num_out_of_range() != 0)
+      failures.push_back ("a freshly constructed Data already reports " + str(data.get_num_out_of_range()) + " out-of-range values");
+
+    data (1000.0);
+    data (-1000.0);
+    data (5.0); // in range, must not be counted as out-of-range
+
+    ++extra_tests;
+    if (data.get_num_out_of_range() != 2)
+      failures.push_back ("feeding one below-range and one above-range value left get_num_out_of_range() at " + str(data.get_num_out_of_range()) + " instead of 2");
+
+    ++extra_tests;
+    size_t total_in_range = 0;
+    for (size_t i = 0; i != data.size(); ++i)
+      total_in_range += data[i];
+    if (total_in_range != 1)
+      failures.push_back ("two out-of-range values were counted into the histogram bins (total " + str(total_in_range) + " instead of 1)");
   }
 
   if (failures.size()) {
-    Exception e (str(failures.size()) + " of " + str(sizeof(cases)/sizeof(Case) + 1) + " tests failed:");
+    Exception e (str(failures.size()) + " of " + str(sizeof(cases)/sizeof(Case) + extra_tests) + " tests failed:");
     for (const auto& s : failures)
       e.push_back (s);
     throw e;
